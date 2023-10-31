@@ -9,7 +9,6 @@ import subprocess
 import time
 from typing import List
 from paho.mqtt.client import Client as MqttClient, MQTTMessage
-from control.optional import EtConfig
 import dataclass_utils
 
 from control.chargepoint.chargepoint_template import get_chargepoint_template_default
@@ -32,7 +31,7 @@ log = logging.getLogger(__name__)
 
 
 class UpdateConfig:
-    DATASTORE_VERSION = 27
+    DATASTORE_VERSION = 28
     valid_topic = [
         "^openWB/bat/config/configured$",
         "^openWB/bat/set/charging_power_left$",
@@ -203,8 +202,7 @@ class UpdateConfig:
         "^openWB/optional/et/get/fault_state$",
         "^openWB/optional/et/get/fault_str$",
         "^openWB/optional/et/get/prices$",
-        "^openWB/optional/et/config/provider$",
-        "^openWB/optional/et/config/max_price$",
+        "^openWB/optional/et/provider$",
         "^openWB/optional/int_display/active$",
         "^openWB/optional/int_display/on_if_plugged_in$",
         "^openWB/optional/int_display/pin_active$",
@@ -424,8 +422,7 @@ class UpdateConfig:
         ("openWB/graph/config/duration", 120),
         ("openWB/internal_chargepoint/0/data/parent_cp", None),
         ("openWB/internal_chargepoint/1/data/parent_cp", None),
-        ("openWB/optional/et/config/max_price", EtConfig().max_price),
-        ("openWB/optional/et/config/provider", {"type": None, "configuration": {}}),
+        ("openWB/optional/et/provider", {"type": None, "configuration": {}}),
         ("openWB/optional/int_display/active", False),
         ("openWB/optional/int_display/on_if_plugged_in", True),
         ("openWB/optional/int_display/pin_active", False),
@@ -1020,3 +1017,13 @@ class UpdateConfig:
                     Pub().pub(topic.replace("openWB/", "openWB/set/"), configuration_payload)
         self._loop_all_received_topics(upgrade)
         Pub().pub("openWB/system/datastore_version", 27)
+
+    def upgrade_datastore_27(self) -> None:
+        def upgrade(topic: str, payload) -> None:
+            if re.search("openWB/vehicle/template/charge_template/[0-9]+$", topic) is not None:
+                payload = decode_payload(payload)
+                updated_payload = payload
+                updated_payload.update({"et": asdict(ev.Et())})
+                Pub().pub(topic, updated_payload)
+        self._loop_all_received_topics(upgrade)
+        Pub().pub("openWB/system/datastore_version", 28)
