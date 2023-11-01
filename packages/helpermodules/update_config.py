@@ -1022,8 +1022,9 @@ class UpdateConfig:
         def upgrade(topic: str, payload) -> None:
             if re.search("openWB/vehicle/template/charge_template/[0-9]+$", topic) is not None:
                 payload = decode_payload(payload)
-                updated_payload = payload
-                updated_payload.update({"et": asdict(ev.Et())})
-                Pub().pub(topic, updated_payload)
+                if payload.get("et") is None:
+                    updated_payload = payload
+                    updated_payload.update({"et": asdict(ev.Et())})
+                    Pub().pub(topic, updated_payload)
         self._loop_all_received_topics(upgrade)
         Pub().pub("openWB/system/datastore_version", 28)
